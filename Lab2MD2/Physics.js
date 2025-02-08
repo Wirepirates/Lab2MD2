@@ -5,7 +5,7 @@ const SPEED = 5;
 let playerBody = null;
 let currentDirection = null;
 let stuckToWall = false;
-let stuckWallType = null; // 'left', 'right', 'top', 'bottom'
+let stuckWallType = null; // 'left', 'right', 'top', 'bottom', 'center'
 
 // Generate a random hex color
 const getRandomColor = () => {
@@ -14,7 +14,7 @@ const getRandomColor = () => {
   for (let i = 0; i < 6; i++) {
     color += letters[Math.floor(Math.random() * 16)];
   }
-  console.log("Generated color:", color); // Debugging
+  console.log("Generated color:", color);
   return color;
 };
 
@@ -34,65 +34,90 @@ const Physics = (entities, { time }) => {
     let newPosition = { x, y };
     let colorChanged = false; // Track if color changes
 
-    // Ensure color changes when hitting a boundary
-    if (x <= BOUNDARY_THICKNESS) {
+    // Update physics engine
+    Matter.Engine.update(engine, time.delta);
+
+    // Collision with left and right walls
+    if (x <= BOUNDARY_THICKNESS && stuckWallType !== 'left') {
+      entities.player.color = getRandomColor();
+      console.log("Wall hit on left! New color:", entities.player.color);
+
       newPosition.x = BOUNDARY_THICKNESS;
-      if (currentDirection === 'left') {
-        stuckToWall = true;
-        stuckWallType = 'left';
-      }
-      const newColor = getRandomColor();
-      entities.player.color = newColor;
+      stuckToWall = true;
+      stuckWallType = 'left';
       colorChanged = true;
-      console.log("Wall hit on left! New color:", newColor);
     }
 
-    if (x >= SCREEN_WIDTH - BOUNDARY_THICKNESS) {
+    if (x >= SCREEN_WIDTH - BOUNDARY_THICKNESS && stuckWallType !== 'right') {
+      entities.player.color = getRandomColor();
+      console.log("Wall hit on right! New color:", entities.player.color);
+
       newPosition.x = SCREEN_WIDTH - BOUNDARY_THICKNESS;
-      if (currentDirection === 'right') {
-        stuckToWall = true;
-        stuckWallType = 'right';
-      }
-      const newColor = getRandomColor();
-      entities.player.color = newColor;
+      stuckToWall = true;
+      stuckWallType = 'right';
       colorChanged = true;
-      console.log("Wall hit on right! New color:", newColor);
     }
 
-    if (y <= BOUNDARY_THICKNESS) {
+    // Collision with top and bottom walls
+    if (y <= BOUNDARY_THICKNESS && stuckWallType !== 'top') {
+      entities.player.color = getRandomColor();
+      console.log("Wall hit on top! New color:", entities.player.color);
+
       newPosition.y = BOUNDARY_THICKNESS;
-      if (currentDirection === 'up') {
-        stuckToWall = true;
-        stuckWallType = 'top';
-      }
-      const newColor = getRandomColor();
-      entities.player.color = newColor;
+      stuckToWall = true;
+      stuckWallType = 'top';
       colorChanged = true;
-      console.log("Wall hit on top! New color:", newColor);
     }
 
-    if (y >= SCREEN_HEIGHT - BOUNDARY_THICKNESS) {
+    if (y >= SCREEN_HEIGHT - BOUNDARY_THICKNESS && stuckWallType !== 'bottom') {
+      entities.player.color = getRandomColor();
+      console.log("Wall hit on bottom! New color:", entities.player.color);
+
       newPosition.y = SCREEN_HEIGHT - BOUNDARY_THICKNESS;
-      if (currentDirection === 'down') {
-        stuckToWall = true;
-        stuckWallType = 'bottom';
-      }
-      const newColor = getRandomColor();
-      entities.player.color = newColor;
+      stuckToWall = true;
+      stuckWallType = 'bottom';
       colorChanged = true;
-      console.log("Wall hit on bottom! New color:", newColor);
     }
 
-    // Force UI update if color changed
+    // ✅ FINAL FIX: Prevent Color Change While Sliding Along Center
+    if (
+      entities.boundaryCenterHorizontal &&
+      Matter.Collision.collides(playerBody, entities.boundaryCenterHorizontal.body)
+    ) {
+      if (stuckWallType !== 'center') { // Only change color when first colliding
+        entities.player.color = getRandomColor();
+        console.log("Collision with central barrier! New color:", entities.player.color);
+        colorChanged = true;
+
+        // Prevent movement through the barrier
+        if (currentDirection === 'up' && y > SCREEN_HEIGHT / 2) {
+          newPosition.y = SCREEN_HEIGHT / 2 + BOUNDARY_THICKNESS;
+        } else if (currentDirection === 'down' && y < SCREEN_HEIGHT / 2) {
+          newPosition.y = SCREEN_HEIGHT / 2 - BOUNDARY_THICKNESS;
+        }
+
+        stuckToWall = true;
+        stuckWallType = 'center';
+      } else {
+        // If already stuck on center, lock movement but do NOT change color
+        if (currentDirection === 'up' && y > SCREEN_HEIGHT / 2) {
+          newPosition.y = SCREEN_HEIGHT / 2 + BOUNDARY_THICKNESS;
+        }
+        if (currentDirection === 'down' && y < SCREEN_HEIGHT / 2) {
+          newPosition.y = SCREEN_HEIGHT / 2 - BOUNDARY_THICKNESS;
+        }
+      }
+    }
+
+    // ✅ Force UI update if color changed
     if (colorChanged) {
-      entities.player.__rerender = Math.random(); // ✅ Force re-render
+      entities.player.__rerender = Date.now();
     }
 
     // Check for collision with the enemy
     if (entities.enemy && Matter.Collision.collides(playerBody, entities.enemy.body)) {
-      const newColor = getRandomColor();
-      entities.player.color = newColor;
-      console.log("Collision with enemy! New color:", newColor);
+      entities.player.color = getRandomColor();
+      console.log("Collision with enemy! New color:", entities.player.color);
       handleEnemyCollision(entities);
     }
 
@@ -114,11 +139,11 @@ const Physics = (entities, { time }) => {
       }
     }
 
-    // Ensure the player stays stuck to the wall when moving along it
+    // ✅ Prevent `stuckToWall` from interfering with updates
     if (stuckToWall) {
       if (stuckWallType === 'left' || stuckWallType === 'right') {
         newPosition.x = playerBody.position.x;
-      } else if (stuckWallType === 'top' || stuckWallType === 'bottom') {
+      } else if (stuckWallType === 'top' || stuckWallType === 'bottom' || stuckWallType === 'center') {
         newPosition.y = playerBody.position.y;
       }
     }
@@ -127,7 +152,6 @@ const Physics = (entities, { time }) => {
     Matter.Body.setPosition(playerBody, newPosition);
   }
 
-  Matter.Engine.update(engine, time.delta);
   return { ...entities }; // ✅ Ensure entities update
 };
 
@@ -151,6 +175,7 @@ export const movePlayer = (direction) => {
   if (!playerBody) return;
 
   stuckToWall = false;
+  stuckWallType = null; // Reset wall type when moving
   currentDirection = direction;
 };
 
