@@ -3,12 +3,13 @@ import { StyleSheet, View, StatusBar, TouchableOpacity, Text } from 'react-nativ
 import { GameEngine } from 'react-native-game-engine';
 import { createEntities } from './gameLogic';
 import Physics, { movePlayer } from './Physics';
+import TouchHandler from './TouchHandler'; // ✅ Import TouchHandler
 
 export default function App() {
   return (
     <View style={styles.container}>
       <GameEngine
-        systems={[Physics]} 
+        systems={[Physics, TouchHandler]} // ✅ Add TouchHandler
         entities={createEntities()}
         style={styles.gameContainer}
       >
