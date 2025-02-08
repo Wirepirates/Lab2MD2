@@ -2,11 +2,11 @@ import Matter from 'matter-js';
 import { SCREEN_HEIGHT } from './constants';
 
 let enemyDirection = null; // Stores the current swipe direction
+let enemyCanMove = false; // Start disabled so enemy stays still until a swipe
 
 const TouchHandler = (entities, { touches }) => {
   let startTouch = touches.find(t => t.type === "start");
   let moveTouch = touches.find(t => t.type === "move");
-  let endTouch = touches.find(t => t.type === "end");
 
   if (startTouch) {
     let { pageX, pageY } = startTouch.event;
@@ -31,10 +31,12 @@ const TouchHandler = (entities, { touches }) => {
       } else {
         enemyDirection = deltaY > 0 ? 'down' : 'up';
       }
+
+      enableEnemyMovement(); // Allow movement when a swipe occurs
     }
   }
 
-  if (entities.enemy && enemyDirection) {
+  if (entities.enemy && enemyDirection && enemyCanMove) { // Ensure movement only happens when allowed
     let enemy = entities.enemy.body;
     let speed = 5; // Same speed as the player
 
@@ -61,6 +63,17 @@ const TouchHandler = (entities, { touches }) => {
   }
 
   return entities;
+};
+
+// Function to allow enemy movement again when the player swipes
+export const enableEnemyMovement = () => {
+  enemyCanMove = true;
+};
+
+// Function to stop enemy movement after collision
+export const disableEnemyMovement = () => {
+  enemyCanMove = false;
+  enemyDirection = null; // Reset direction to prevent auto-movement
 };
 
 export default TouchHandler;

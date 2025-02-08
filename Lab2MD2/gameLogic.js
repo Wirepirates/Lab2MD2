@@ -50,10 +50,13 @@ export const createEntities = () => {
   // Player
   const playerSize = 30; // Size of the player (square)
   entities.player = createPlayer(
-    world, 'blue', // Player color
-    { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 4 }, // Center of the upper half
+    world, 'blue', // ✅ Player starts with blue, but updates dynamically
+    { x: SCREEN_WIDTH / 2, y: SCREEN_HEIGHT / 4 },
     { width: playerSize, height: playerSize }
   );
+  
+  entities.player.color = 'blue'; // ✅ Explicitly add color property
+  
 
   // Enemy
   const enemySize = 50; // Size of the enemy (square)
